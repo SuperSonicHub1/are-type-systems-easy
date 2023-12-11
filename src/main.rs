@@ -1,10 +1,28 @@
 /// Implementing https://langdev.stackexchange.com/a/2693
 /// as a challenge to myself.
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum Type {
     Bool,
     Int,
+    Union(Box<Type>, Box<Type>)
+}
+
+
+
+fn simplify(type_: Type) -> Type {
+    let type_clone = type_.clone();
+    match type_ {
+        // TODO: More robustly simplify unions 
+        Type::Union(left, right) => {
+            if left == right {
+                *left
+            } else {
+                type_clone
+            }
+        },
+        _ => type_
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -47,8 +65,8 @@ fn infer(expr: &Expression) -> Option<Type> {
         } if infer(condition) == Some(Type::Bool) => {
             let consequent_type = infer(consequent);
             let alternative_type = infer(alternative);
-            if consequent_type == alternative_type {
-                consequent_type
+            if let (Some(cons), Some(alt)) = (consequent_type, alternative_type) {
+                Some(simplify(Type::Union(Box::new(cons), Box::new(alt))))
             } else {
                 None
             }
@@ -128,6 +146,22 @@ fn main() {
         Expression::If {
             condition: Box::new(0.into()),
             consequent: Box::new(true.into()),
+            alternative: Box::new(1.into()),
+        },
+        Expression::If {
+            condition: Box::new(true.into()),
+            consequent: Box::new(true.into()),
+            alternative: Box::new(1.into()),
+        },
+        Expression::If {
+            condition: Box::new(true.into()),
+            consequent: Box::new(
+                Expression::If {
+                    condition: Box::new(true.into()),
+                    consequent: Box::new(true.into()),
+                    alternative: Box::new(1.into()),
+                },
+            ),
             alternative: Box::new(1.into()),
         },
     ];
